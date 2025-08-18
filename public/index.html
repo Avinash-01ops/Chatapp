@@ -3,8 +3,183 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="style.css">
   <title>WebSocket Chat</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      background: #111;
+      color: #fff;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .chat-container {
+      background: #111;
+      box-shadow: none;
+      border-radius: 0;
+      max-width: 1100px;
+      width: 100%;
+      height: 80vh;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #222;
+    }
+    .messages-container {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 20px 10px;
+      font-size: 16px;
+    }
+    .message-container {
+      margin-bottom: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .sender-message-container {
+      align-items: flex-end;
+    }
+    .username {
+      font-size: 13px;
+      color: #505050;
+      margin-bottom: 2px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .message-bubble {
+      background: #3b3b3b;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 8px;
+      max-width: 80%;
+      word-break: break-word;
+      font-size: 16px;
+      margin-bottom: 2px;
+      box-shadow: none;
+      border: none;
+    }
+    .timestamp {
+      font-size: 11px;
+      color: #505050;
+      margin-top: 2px;
+      text-align: right;
+      align-self: flex-end;
+    }
+    .message-input-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px;
+      background: #111;
+      border-top: 1px solid #222;
+    }
+    #messageInput {
+      flex-grow: 1;
+      border: 1px solid #333;
+      outline: none;
+      border-radius: 6px;
+      height: 38px;
+      font-size: 15px;
+      padding: 0 12px;
+      background: #222;
+      color: #fff;
+      box-sizing: border-box;
+    }
+    #messageInput:focus {
+      border-color: #555;
+    }
+    #sendButton, #clearChatButton {
+      background: #222;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      height: 38px;
+      width: 80px;
+      font-size: 15px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #sendButton:hover, #clearChatButton:hover {
+      background: #333;
+    }
+    #emojiButton {
+      font-size: 22px;
+      background: none;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      margin-left: 4px;
+    }
+    #emojiPickerContainer {
+      position: absolute;
+      bottom: 60px;
+      left: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      padding: 8px;
+      background: #222;
+      border: 1px solid #333;
+      border-radius: 5px;
+      z-index: 100;
+    }
+    #emojiPickerContainer.hidden {
+      display: none;
+    }
+    #emojiPickerContainer span {
+      cursor: pointer;
+      font-size: 22px;
+      padding: 3px;
+      border-radius: 3px;
+      transition: background 0.2s;
+    }
+    #emojiPickerContainer span:hover {
+      background: #333;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(20, 20, 20, 0.85);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: #222;
+      padding: 30px;
+      border-radius: 10px;
+      text-align: center;
+      width: 350px;
+      color: #fff;
+      box-shadow: none;
+    }
+    .modal-content input, .modal-content button {
+      width: 90%;
+      height: 38px;
+      margin-top: 18px;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #111;
+      color: #fff;
+      font-size: 15px;
+      box-sizing: border-box;
+    }
+    .modal-content button {
+      background: #333;
+      cursor: pointer;
+      border: none;
+    }
+    .modal-content button:hover {
+      background: #444;
+    }
+  </style>
 </head>
 <body>
     <!-- Username modal -->
@@ -19,7 +194,7 @@
     <div class="chat-container">
       <div class="messages-container" id="messages"></div>
       <div class="message-input-container">
-        <input type="text" id="messageInput" placeholder="Enter a message">
+        <input type="text" id="messageInput" placeholder="Type a message...">
         <button id="emojiButton" title="Add Emoji">😊</button>
         <div id="emojiPickerContainer" class="hidden">
           <div id="emojiPicker">
@@ -28,18 +203,7 @@
           </div>
         </div>
         <button id="sendButton">Send</button>
-        <button id="clearChatButton">Clear Chat</button>
-        <button id="changeThemeButton" title="Change Theme">Change Theme</button>
-      </div>
-            <!-- Theme Selection Modal -->
-      <div id="themeModal" class="modal">
-        <div class="modal-content">
-          <h2>Select a Theme</h2>
-          <div id="themePreviews" class="theme-previews">
-            <!-- Preview images for themes -->
-          </div>
-          <button id="closeThemeModal">Close</button>
-        </div>
+        <button id="clearChatButton">Clear</button>
       </div>
     </div>
   
@@ -60,210 +224,93 @@
       
         // Show modal to set username when the page loads
         window.addEventListener('load', () => {
-            usernameModal.style.display = 'flex';  // Show modal on page load
+            usernameModal.style.display = 'flex';
         });
       
         // Handle username submission
         usernameSubmitButton.addEventListener('click', () => {
             const input = usernameInput.value.trim();
-        
             if (!input) {
                 alert('Please enter a username.');
                 return;
             }
-        
-            username = input; // Set the username
-            usernameModal.style.display = 'none'; // Hide modal
+            username = input;
+            usernameModal.style.display = 'none';
         });
       
         // Handle receiving messages from the server
         ws.addEventListener('message', (event) => {
-            const { username: sender, message } = JSON.parse(event.data); // Parse the received message
-            displayMessage(`${sender}: ${message}`);
+            const { username: sender, message } = JSON.parse(event.data);
+            displayMessage(sender, message, false);
         });
       
         // Handle sending messages
         sendButton.addEventListener('click', () => {
-            const message = messageInput.value.trim(); // Trim to avoid sending spaces
-        
+            const message = messageInput.value.trim();
             if (!username) {
                 alert('Please enter a username before sending messages.');
                 return;
             }
-        
             if (!message) {
-                // Display warning in the input box
                 messageInput.placeholder = 'Enter a message';
                 messageInput.style.border = '2px crimson solid';
                 messageInput.style.color = 'red';
-        
-                // Remove the warning when the user types
                 messageInput.addEventListener('input', () => {
                     messageInput.placeholder = 'Type a message...';
-                    messageInput.style.border = 'none';
-                    messageInput.style.color = 'black';
-                });
+                    messageInput.style.border = '1px solid #333';
+                    messageInput.style.color = '#fff';
+                }, { once: true });
                 return;
             }
-        
-            // Send message to the server with the username
-            const messagePayload = { username, message };
-            ws.send(JSON.stringify(messagePayload));
-        
-            // Display the message in the chat as the sender
-            displayMessage(`${username}: ${message}`, true);
-            messageInput.value = ''; // Clear the input field
+            ws.send(JSON.stringify({ username, message }));
+            displayMessage(username, message, true);
+            messageInput.value = '';
         });
-      
-        // Display a message
-        function displayMessage(content, isSender = false) {
-            const isEmojiOnly = /^[\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u.test(content.split(': ')[1]?.trim());
 
+        // Display a message with username above, timestamp below
+        function displayMessage(sender, message, isSender = false) {
             const messageContainer = document.createElement('div');
+            messageContainer.classList.add('message-container');
+            if (isSender) messageContainer.classList.add('sender-message-container');
+
             const usernameElement = document.createElement('div');
+            usernameElement.textContent = sender;
+            usernameElement.classList.add('username');
+
             const messageElement = document.createElement('div');
-            const timestampElement = document.createElement('div'); // For displaying the timestamp
+            messageElement.textContent = message;
+            messageElement.classList.add('message-bubble');
 
-            // Get the current date and time
-            const timestamp = new Date();
-            const formattedTime = formatTimestamp(timestamp); // Format the timestamp
+            const timestampElement = document.createElement('div');
+            timestampElement.textContent = formatTimestamp(new Date());
+            timestampElement.classList.add('timestamp');
 
-            if (isEmojiOnly) {
-                const [username, emoji] = content.split(': ');
-                usernameElement.textContent = username + ':'; // Username above emoji
-                usernameElement.classList.add('username');
-
-                messageElement.textContent = emoji.trim(); // Emoji content
-                messageElement.classList.add('enlarged-emoji');
-
-                messageContainer.classList.add('sender-emoji-message'); // Align emoji + username
-                messageContainer.appendChild(usernameElement);
-            } else {
-                messageElement.textContent = content;
-                messageElement.classList.add('message-bubble');
-                if (isSender) {
-                    messageContainer.classList.add('sender-message-container');
-                }
-            }
-
-            // Add timestamp to the message
-            timestampElement.textContent = formattedTime;
-            timestampElement.classList.add('timestamp'); // Style the timestamp separately
+            messageContainer.appendChild(usernameElement);
             messageContainer.appendChild(messageElement);
-            messageContainer.appendChild(timestampElement); // Append the timestamp
+            messageContainer.appendChild(timestampElement);
 
             messagesDiv.appendChild(messageContainer);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        // Function to format the timestamp
         function formatTimestamp(date) {
-            const options = {
-                weekday: 'short', // e.g., "Mon"
-                year: 'numeric', // e.g., "2025"
-                month: 'short', // e.g., "Jan"
-                day: 'numeric', // e.g., "24"
-                hour: 'numeric', // e.g., "10"
-                minute: 'numeric', // e.g., "15"
-                hour12: true, // 12-hour format with AM/PM
-            };
-            
-            return date.toLocaleString('en-US', options); // Return formatted date and time
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
-        // Styling for timestamp
-        const style = document.createElement('style');
-        style.textContent = `
-            .profile-image {
-                width: 30px;
-                height: 30px;
-                border-radius: 50%;
-                margin-right: 10px;
-            }
-            .timestamp {
-                font-size: 0.8em;
-                color: gray;
-                margin-top: 5px;
-                text-align: right;
-            }
-        `;
-        document.head.appendChild(style);
-
-        // Toggle emoji picker
         emojiButton.addEventListener('click', () => {
           emojiPickerContainer.classList.toggle('hidden');
         });
 
-        // Add emoji to input
         emojiPickerContainer.addEventListener('click', (event) => {
           if (event.target.tagName === 'SPAN') {
-            const selectedEmoji = event.target.textContent;
-            messageInput.value += selectedEmoji;
+            messageInput.value += event.target.textContent;
             emojiPickerContainer.classList.add('hidden');
           }
         });
-              
-          clearChatButton.addEventListener('click', () => {
-          messagesDiv.innerHTML = ''; // Clear all messages
-          });
 
-        
-        //Change Theme
-        const changeThemeButton = document.getElementById('changeThemeButton');
-
-        // Add event listener to open the theme modal when the button is clicked
-        changeThemeButton.addEventListener('click', openThemeModal);
-
-        // Function to open the theme modal
-        function openThemeModal() {
-          themeModal.style.display = 'flex';  // Make sure 'themeModal' exists in your code
-        }
-
-        // Theme-related elements
-        const themeModal = document.getElementById('themeModal');
-        const themePreviewsContainer = document.getElementById('themePreviews');
-        const closeThemeModalButton = document.getElementById('closeThemeModal');
-
-        // List of background images (URLs)
-        const themeImages = [
-          'url("https://images.unsplash.com/photo-1554147090-e1221a04a025?q=80&w=2048&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D")',
-          'url("https://images.unsplash.com/photo-1500881263786-ad74c00b9e60?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D")',
-          'url("https://images.unsplash.com/photo-1507843528572-dce34aa57530?q=80&w=2047&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D")',
-          'url("https://images.unsplash.com/photo-1496938884040-e0456a8512ca?q=80&w=2068&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D")',
-          'url("https://images.unsplash.com/photo-1498480086004-2400bd8c3663?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D")',
-          'url("https://images.unsplash.com/photo-1508062082364-fb2678d58976?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D")'
-        ];
-
-        // Function to create theme preview elements
-        function createThemePreviews() {
-          themeImages.forEach((imageUrl, index) => {
-            const previewElement = document.createElement('div');
-            previewElement.classList.add('theme-preview');
-            previewElement.style.backgroundImage = imageUrl;
-            previewElement.addEventListener('click', () => switchTheme(imageUrl));
-            themePreviewsContainer.appendChild(previewElement);
-          });
-        }
-
-        // Switch background image when a theme is selected
-        function switchTheme(imageUrl) {
-          document.querySelector('.chat-container').style.backgroundImage = imageUrl;
-          themeModal.style.display = 'none'; // Close the modal after selection
-        }
-
-        // Open theme modal (you can trigger this from anywhere in your code)
-        function openThemeModal() {
-          themeModal.style.display = 'flex';
-        }
-
-        // Close the theme modal
-        closeThemeModalButton.addEventListener('click', () => {
-          themeModal.style.display = 'none';
+        clearChatButton.addEventListener('click', () => {
+          messagesDiv.innerHTML = '';
         });
-
-        // Call this function to initialize the theme previews
-        createThemePreviews();
-
     </script>
 </body>
 </html>
