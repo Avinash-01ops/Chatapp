@@ -1,33 +1,34 @@
-const WebSocket = require('ws');
-const http = require('http');
 const express = require('express');
+const http = require('http');
 const path = require('path');
+const { Server } = require('socket.io');
+const cors = require('cors');
 
 const app = express();
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
-
+app.use(cors()); // Allow all origins
 app.use(express.static(path.join(__dirname, 'public')));
 
-wss.on('connection', (ws) => {
-  console.log('Client connected');
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 
-  ws.on('message', (data) => {
-    const parsedData = JSON.parse(data); // Parse incoming message
-    const { username, message } = parsedData;
+io.on('connection', (socket) => {
+  console.log(`Client connected: ${socket.id}`);
 
-    wss.clients.forEach((client) => {
-      if (client !== ws && client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ username, message })); // Broadcast message
-      }
-    });
+  socket.on('chat message', ({ username, message }) => {
+    io.emit('chat message', { username, message });
   });
 
-  ws.on('close', () => {
-    console.log('Client disconnected');
+  socket.on('disconnect', () => {
+    console.log(`Client disconnected: ${socket.id}`);
   });
 });
 
-server.listen(3000, () => {
-  console.log('Server started on http://localhost:3000');
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, () => {
+  console.log(`Server started on http://localhost:${PORT}`);
 });
