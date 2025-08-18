@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WebSocket Chat</title>
+  <title>Socket.IO Chat</title>
   <style>
     body {
       margin: 0;
@@ -44,7 +44,7 @@
     }
     .username {
       font-size: 13px;
-      color: #505050;
+      color: #bbb;
       margin-bottom: 2px;
       font-weight: 600;
       letter-spacing: 0.5px;
@@ -207,6 +207,7 @@
       </div>
     </div>
   
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
         const messagesDiv = document.getElementById('messages');
         const messageInput = document.getElementById('messageInput');
@@ -218,7 +219,8 @@
         const emojiButton = document.getElementById('emojiButton');
         const emojiPickerContainer = document.getElementById('emojiPickerContainer');
 
-        const ws = new WebSocket('ws://localhost:3000');
+        // Use relative path for Socket.IO connection (works for local and Render)
+        const socket = io();
 
         let username = '';
       
@@ -239,9 +241,12 @@
         });
       
         // Handle receiving messages from the server
-        ws.addEventListener('message', (event) => {
-            const { username: sender, message } = JSON.parse(event.data);
-            displayMessage(sender, message, false);
+        socket.on('chat message', (data) => {
+            const { username: sender, message } = data;
+            // Only show messages from others
+            if (sender !== username) {
+                displayMessage(sender, message, false);
+            }
         });
       
         // Handle sending messages
@@ -262,7 +267,7 @@
                 }, { once: true });
                 return;
             }
-            ws.send(JSON.stringify({ username, message }));
+            socket.emit('chat message', { username, message });
             displayMessage(username, message, true);
             messageInput.value = '';
         });
