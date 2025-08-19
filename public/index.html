@@ -38,6 +38,7 @@
       display: flex;
       flex-direction: column;
       align-items: flex-start;
+      position: relative;
     }
     .sender-message-container {
       align-items: flex-end;
@@ -50,7 +51,7 @@
       letter-spacing: 0.5px;
     }
     .message-bubble {
-      background: #3b3b3b;
+      background: #222;
       color: #fff;
       padding: 10px 16px;
       border-radius: 8px;
@@ -60,10 +61,29 @@
       margin-bottom: 2px;
       box-shadow: none;
       border: none;
+      position: relative;
+      min-height: 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
     }
+    .message-bubble img.chat-image {
+      max-width: 220px;
+      max-height: 220px;
+      border-radius: 10px;
+      display: block;
+      margin: 4px 0;
+    }
+    .message-bubble .big-emoji {
+      font-size: 48px;
+      line-height: 1.2;
+      display: block;
+      margin: 4px 0;
+    }
+
     .timestamp {
       font-size: 11px;
-      color: #505050;
+      color: #666;
       margin-top: 2px;
       text-align: right;
       align-self: flex-end;
@@ -106,12 +126,16 @@
       background: #333;
     }
     #emojiButton {
-      font-size: 22px;
+      font-size: 28px;
       background: none;
       border: none;
       color: #fff;
       cursor: pointer;
       margin-left: 4px;
+      transition: transform 0.2s;
+    }
+    #emojiButton:hover {
+      transform: scale(1.2) rotate(-10deg);
     }
     #emojiPickerContainer {
       position: absolute;
@@ -119,25 +143,87 @@
       left: 10px;
       display: flex;
       flex-wrap: wrap;
-      gap: 5px;
-      padding: 8px;
+      gap: 8px;
+      padding: 12px;
       background: #222;
       border: 1px solid #333;
-      border-radius: 5px;
+      border-radius: 8px;
       z-index: 100;
+      max-width: 400px;
+      max-height: 220px;
+      overflow-y: auto;
     }
     #emojiPickerContainer.hidden {
       display: none;
     }
     #emojiPickerContainer span {
       cursor: pointer;
-      font-size: 22px;
-      padding: 3px;
-      border-radius: 3px;
-      transition: background 0.2s;
+      font-size: 32px;
+      padding: 6px;
+      border-radius: 6px;
+      transition: background 0.2s, transform 0.2s;
+      display: inline-block;
     }
     #emojiPickerContainer span:hover {
       background: #333;
+      transform: scale(1.3) rotate(-10deg);
+    }
+    .reaction-btn {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+      margin-left: 6px;
+      margin-top: 2px;
+      transition: transform 0.2s;
+    }
+    .reaction-btn:hover {
+      transform: scale(1.2) rotate(-10deg);
+    }
+    .reactions-bar {
+      display: flex;
+      gap: 4px;
+      margin-top: 4px;
+      margin-left: 2px;
+    }
+    .reaction-emoji {
+      font-size: 26px;
+      background: #222;
+      border-radius: 6px;
+      padding: 2px 6px;
+      margin-right: 2px;
+      transition: transform 0.2s;
+      display: inline-block;
+      border: 1px solid #333;
+    }
+    .reaction-emoji:hover {
+      transform: scale(1.2) rotate(-10deg);
+      background: #333;
+    }
+    .reaction-picker {
+      position: absolute;
+      top: 30px;
+      left: 0;
+      background: #222;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      z-index: 200;
+    }
+    .reaction-picker span {
+      font-size: 28px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 5px;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .reaction-picker span:hover {
+      background: #333;
+      transform: scale(1.2) rotate(-10deg);
     }
     .modal {
       display: none;
@@ -198,10 +284,18 @@
         <button id="emojiButton" title="Add Emoji">😊</button>
         <div id="emojiPickerContainer" class="hidden">
           <div id="emojiPicker">
-            <span>😀</span> <span>😂</span> <span>❤️</span> <span>👍</span> <span>🎉</span> <span>😊</span>
-            <span>🤔</span> <span>🥳</span> <span>🙌</span> <span>😎</span> <span>🙏</span> <span>🤩</span>
+            <span>😀</span><span>😂</span><span>❤️</span><span>👍</span><span>🎉</span><span>😊</span>
+            <span>🤔</span><span>🥳</span><span>🙌</span><span>😎</span><span>🙏</span><span>🤩</span>
+            <span>🔥</span><span>🥰</span><span>😱</span><span>😜</span><span>😇</span><span>💯</span>
+            <span>😅</span><span>😏</span><span>😤</span><span>😬</span><span>😋</span><span>😢</span>
+            <span>😡</span><span>😆</span><span>😃</span><span>😄</span><span>😚</span><span>😙</span>
+            <span>😗</span><span>😽</span><span>😺</span><span>😸</span><span>😻</span><span>😼</span>
+            <span>😹</span><span>🥹</span><span>🫶</span><span>🤗</span><span>😇</span><span>😋</span>
+            <span>😛</span><span>😝</span><span>😜</span><span>🤪</span><span>🤤</span><span>😪</span>
+            <span>😴</span><span>😷</span><span>🤒</span><span>🤕</span><span>🤑</span><span>🤠</span>
           </div>
         </div>
+
         <button id="sendButton">Send</button>
         <button id="clearChatButton">Clear</button>
       </div>
@@ -219,16 +313,18 @@
         const emojiButton = document.getElementById('emojiButton');
         const emojiPickerContainer = document.getElementById('emojiPickerContainer');
 
-        // Use relative path for Socket.IO connection (works for local and Render)
+
+        // Use Socket.IO for real-time communication
         const socket = io();
 
         let username = '';
-      
+        let reactionPickers = [];
+
         // Show modal to set username when the page loads
         window.addEventListener('load', () => {
             usernameModal.style.display = 'flex';
         });
-      
+
         // Handle username submission
         usernameSubmitButton.addEventListener('click', () => {
             const input = usernameInput.value.trim();
@@ -239,24 +335,36 @@
             username = input;
             usernameModal.style.display = 'none';
         });
-      
+
         // Handle receiving messages from the server
         socket.on('chat message', (data) => {
-            const { username: sender, message } = data;
-            // Only show messages from others
+            const { username: sender, message, image, reactions, timestamp } = data;
             if (sender !== username) {
-                displayMessage(sender, message, false);
+                displayMessage(sender, message, false, image, null, reactions, timestamp);
             }
         });
-      
+
+        // Handle receiving reactions
+        socket.on('reaction', ({ messageId, emoji }) => {
+            const msgDiv = document.querySelector(`[data-id="${messageId}"]`);
+            if (msgDiv) {
+                addReactionToMessage(msgDiv, emoji);
+            }
+        });
+
         // Handle sending messages
-        sendButton.addEventListener('click', () => {
-            const message = messageInput.value.trim();
+        function sendMessage({image} = {}) {
+            let message = messageInput.value.trim();
             if (!username) {
                 alert('Please enter a username before sending messages.');
                 return;
             }
-            if (!message) {
+            // If user only sends a single emoji, treat as big emoji
+            let isBigEmoji = false;
+            if (!image && message && /^([\uD800-\uDBFF][\uDC00-\uDFFF]|\p{Emoji_Presentation}|\p{Extended_Pictographic})$/u.test(message)) {
+                isBigEmoji = true;
+            }
+            if (!message && !image) {
                 messageInput.placeholder = 'Enter a message';
                 messageInput.style.border = '2px crimson solid';
                 messageInput.style.color = 'red';
@@ -267,27 +375,152 @@
                 }, { once: true });
                 return;
             }
-            socket.emit('chat message', { username, message });
-            displayMessage(username, message, true);
+            const msgObj = {
+                username,
+                message,
+                image: image || null,
+                reactions: [],
+                timestamp: Date.now(),
+                id: Date.now().toString() + Math.random().toString(36).slice(2),
+                isBigEmoji
+            };
+            socket.emit('chat message', msgObj);
+            displayMessage(username, message, true, image, null, [], msgObj.timestamp, msgObj.id, isBigEmoji);
             messageInput.value = '';
+        }
+
+        sendButton.addEventListener('click', () => sendMessage());
+
+        // Send message on Enter key
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
         });
 
-        // Display a message with username above, timestamp below
-        function displayMessage(sender, message, isSender = false) {
+        // Emoji picker for message input
+        emojiButton.addEventListener('click', () => {
+          emojiPickerContainer.classList.toggle('hidden');
+        });
+
+        emojiPickerContainer.addEventListener('click', (event) => {
+          if (event.target.tagName === 'SPAN') {
+            // If user picks a single emoji, send as big emoji
+            messageInput.value = event.target.textContent;
+            emojiPickerContainer.classList.add('hidden');
+            sendMessage();
+          }
+        });
+
+        // Paste image URL or image data
+        messageInput.addEventListener('paste', (e) => {
+            const items = (e.clipboardData || window.clipboardData).items;
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.type.indexOf("image") !== -1) {
+                    const file = item.getAsFile();
+                    const reader = new FileReader();
+                    reader.onload = function(evt) {
+                        sendMessage({image: evt.target.result});
+                    };
+                    reader.readAsDataURL(file);
+                    e.preventDefault();
+                    return;
+                }
+            }
+            // If not image, check for image URL
+            const text = (e.clipboardData || window.clipboardData).getData('text');
+            if (text && (text.startsWith('http://') || text.startsWith('https://')) && /\.(jpg|jpeg|png|gif|webp)$/i.test(text)) {
+                sendMessage({image: text});
+                e.preventDefault();
+            }
+        });
+
+
+
+        // Display a message with username above, timestamp below, reactions, and reaction button
+        function displayMessage(sender, message, isSender = false, image = null, sticker = null, reactions = [], timestamp = null, id = null, isBigEmoji = false) {
             const messageContainer = document.createElement('div');
             messageContainer.classList.add('message-container');
             if (isSender) messageContainer.classList.add('sender-message-container');
+            const messageId = id || Date.now().toString() + Math.random().toString(36).slice(2);
+            messageContainer.dataset.id = messageId;
 
             const usernameElement = document.createElement('div');
             usernameElement.textContent = sender;
             usernameElement.classList.add('username');
 
             const messageElement = document.createElement('div');
-            messageElement.textContent = message;
             messageElement.classList.add('message-bubble');
 
+            // Add text or big emoji
+            if (message) {
+                if (isBigEmoji) {
+                    const emojiSpan = document.createElement('span');
+                    emojiSpan.textContent = message;
+                    emojiSpan.className = 'big-emoji';
+                    messageElement.appendChild(emojiSpan);
+                } else {
+                    const textNode = document.createElement('span');
+                    textNode.textContent = message;
+                    messageElement.appendChild(textNode);
+                }
+            }
+            // Add image
+            if (image) {
+                const img = document.createElement('img');
+                img.src = image;
+                img.alt = "sent image";
+                img.className = "chat-image";
+                messageElement.appendChild(img);
+            }
+
+
+            // Reaction bar
+            const reactionsBar = document.createElement('div');
+            reactionsBar.className = 'reactions-bar';
+            if (Array.isArray(reactions)) {
+                reactions.forEach(emoji => {
+                    const emojiSpan = document.createElement('span');
+                    emojiSpan.className = 'reaction-emoji';
+                    emojiSpan.textContent = emoji;
+                    reactionsBar.appendChild(emojiSpan);
+                });
+            }
+
+            // Reaction button
+            const reactBtn = document.createElement('button');
+            reactBtn.className = 'reaction-btn';
+            reactBtn.title = 'React';
+            reactBtn.innerHTML = '✌️';
+
+            // Reaction picker
+            let pickerDiv = null;
+            reactBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeAllReactionPickers();
+                pickerDiv = createReactionPicker((emoji) => {
+                    addReactionToMessage(messageContainer, emoji);
+                    socket.emit('reaction', { messageId, emoji });
+                    pickerDiv.remove();
+                });
+                messageContainer.appendChild(pickerDiv);
+                reactionPickers.push(pickerDiv);
+            });
+
+            // Close picker if clicking outside
+            document.addEventListener('click', closeAllReactionPickers);
+
+            function closeAllReactionPickers() {
+                reactionPickers.forEach(p => p.remove());
+                reactionPickers = [];
+            }
+
+            messageElement.appendChild(reactionsBar);
+            messageElement.appendChild(reactBtn);
+
             const timestampElement = document.createElement('div');
-            timestampElement.textContent = formatTimestamp(new Date());
+            timestampElement.textContent = formatTimestamp(timestamp ? new Date(timestamp) : new Date());
             timestampElement.classList.add('timestamp');
 
             messageContainer.appendChild(usernameElement);
@@ -298,20 +531,40 @@
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
+        function addReactionToMessage(msgDiv, emoji) {
+            const bar = msgDiv.querySelector('.reactions-bar');
+            if (bar) {
+                // Only add if not already present (or you can allow duplicates)
+                if (![...bar.children].some(e => e.textContent === emoji)) {
+                    const emojiSpan = document.createElement('span');
+                    emojiSpan.className = 'reaction-emoji';
+                    emojiSpan.textContent = emoji;
+                    bar.appendChild(emojiSpan);
+                }
+            }
+        }
+
+        function createReactionPicker(onSelect) {
+            const picker = document.createElement('div');
+            picker.className = 'reaction-picker';
+            const emojis = [
+                "😀","😂","😍","😎","😅","😇","🥳","🤩","😜","😢","😡","😱","👍","🙏","🔥","🎉","❤️","💯","😏","😬","😋","😤","😆","😃","😄","😚","😙","😗","😽","😺","😸","😻","😼","😹"
+            ];
+            emojis.forEach(emoji => {
+                const span = document.createElement('span');
+                span.textContent = emoji;
+                span.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    onSelect(emoji);
+                });
+                picker.appendChild(span);
+            });
+            return picker;
+        }
+
         function formatTimestamp(date) {
             return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
-
-        emojiButton.addEventListener('click', () => {
-          emojiPickerContainer.classList.toggle('hidden');
-        });
-
-        emojiPickerContainer.addEventListener('click', (event) => {
-          if (event.target.tagName === 'SPAN') {
-            messageInput.value += event.target.textContent;
-            emojiPickerContainer.classList.add('hidden');
-          }
-        });
 
         clearChatButton.addEventListener('click', () => {
           messagesDiv.innerHTML = '';
