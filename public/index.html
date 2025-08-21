@@ -208,11 +208,13 @@
       font-size: 11px;
       color: #666;
       margin-top: 2px;
-      text-align: right;
-      align-self: flex-end;
       display: flex;
       align-items: center;
       gap: 6px;
+    }
+    .sender-message-container .timestamp {
+      align-self: flex-end;
+      text-align: right;
     }
     .read-receipt {
       width: 8px;
@@ -411,7 +413,7 @@
         <div class="modal-content">
             <h2>Enter Your Username</h2>
             <input type="text" id="usernameInput" placeholder="Enter username..." />
-            <input type="password" id="secretCodeInput" placeholder="Access code..." style="display: none;" />
+            <input type="password" id="secretCodeInput" placeholder="Access code..." style="display: none; width: 90%; height: 38px; margin-top: 18px; border-radius: 6px; border: 1px solid #333; background: #111; color: #fff; font-size: 15px; box-sizing: border-box;" />
             <button id="usernameSubmitButton">Submit</button>
         </div>
     </div>
@@ -625,7 +627,7 @@
             }
             // If user only sends a single emoji, treat as big emoji
             let isBigEmoji = false;
-            if (!image && message && /^([\uD800-\uDBFF][\uDC00-\uDFFF]|\p{Emoji_Presentation}|\p{Extended_Pictographic})$/u.test(message)) {
+            if (!image && message && message.trim().length <= 2 && /^([\uD800-\uDBFF][\uDC00-\uDFFF]|\p{Emoji_Presentation}|\p{Extended_Pictographic})+$/u.test(message.trim())) {
                 isBigEmoji = true;
             }
             if (!message && !image) {
@@ -672,10 +674,14 @@
 
         emojiPickerContainer.addEventListener('click', (event) => {
           if (event.target.tagName === 'SPAN') {
-            // If user picks a single emoji, send as big emoji
-            messageInput.value = event.target.textContent;
+            // Add emoji to existing text
+            const cursorPos = messageInput.selectionStart;
+            const textBefore = messageInput.value.substring(0, cursorPos);
+            const textAfter = messageInput.value.substring(messageInput.selectionEnd);
+            messageInput.value = textBefore + event.target.textContent + textAfter;
+            messageInput.setSelectionRange(cursorPos + event.target.textContent.length, cursorPos + event.target.textContent.length);
+            messageInput.focus();
             emojiPickerContainer.classList.add('hidden');
-            sendMessage();
           }
         });
 
