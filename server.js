@@ -16,15 +16,32 @@ const io = new Server(server, {
   }
 });
 
+let activeUsers = 0;
+
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
+
+  socket.on('user joined', () => {
+    activeUsers++;
+    io.emit('active users', activeUsers);
+  });
 
   socket.on('chat message', (data) => {
     io.emit('chat message', data);
   });
 
+  socket.on('reaction', (data) => {
+    socket.broadcast.emit('reaction', data);
+  });
+
+  socket.on('mark read', ({ messageId }) => {
+    socket.broadcast.emit('message read', { messageId });
+  });
+
   socket.on('disconnect', () => {
     console.log(`Client disconnected: ${socket.id}`);
+    activeUsers = Math.max(0, activeUsers - 1);
+    io.emit('active users', activeUsers);
   });
 });
 

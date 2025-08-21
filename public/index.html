@@ -27,6 +27,33 @@
       flex-direction: column;
       border: 1px solid #222;
     }
+    .chat-header {
+      padding: 12px 16px;
+      background: #1a1a1a;
+      border-bottom: 1px solid #222;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .active-users {
+      font-size: 13px;
+      color: #4fc3f7;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .online-dot {
+      width: 8px;
+      height: 8px;
+      background: #4caf50;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
     .messages-container {
       flex-grow: 1;
       overflow-y: auto;
@@ -87,6 +114,16 @@
       margin-top: 2px;
       text-align: right;
       align-self: flex-end;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .read-receipt {
+      font-size: 14px;
+      color: #666;
+    }
+    .read-receipt.read {
+      color: #4fc3f7;
     }
     .message-input-container {
       display: flex;
@@ -278,6 +315,12 @@
     </div>
 
     <div class="chat-container">
+      <div class="chat-header">
+        <div class="active-users">
+          <div class="online-dot"></div>
+          <span id="activeCount">1 active</span>
+        </div>
+      </div>
       <div class="messages-container" id="messages"></div>
       <div class="message-input-container">
         <input type="text" id="messageInput" placeholder="Type a message...">
@@ -312,6 +355,7 @@
         const clearChatButton = document.getElementById('clearChatButton');
         const emojiButton = document.getElementById('emojiButton');
         const emojiPickerContainer = document.getElementById('emojiPickerContainer');
+        const activeCountElement = document.getElementById('activeCount');
 
 
         // Use Socket.IO for real-time communication
@@ -319,6 +363,8 @@
 
         let username = '';
         let reactionPickers = [];
+        let activeUsers = 1;
+        let messageReadStatus = new Map();
 
         // Show modal to set username when the page loads
         window.addEventListener('load', () => {
@@ -334,13 +380,14 @@
             }
             username = input;
             usernameModal.style.display = 'none';
+            socket.emit('user joined');
         });
 
         // Handle receiving messages from the server
         socket.on('chat message', (data) => {
-            const { username: sender, message, image, reactions, timestamp } = data;
+            const { username: sender, message, image, reactions, timestamp, id } = data;
             if (sender !== username) {
-                displayMessage(sender, message, false, image, null, reactions, timestamp);
+                displayMessage(sender, message, false, image, null, reactions, timestamp, id);
             }
         });
 
@@ -351,6 +398,36 @@
                 addReactionToMessage(msgDiv, emoji);
             }
         });
+
+        // Handle active users count
+        socket.on('active users', (count) => {
+            activeUsers = count;
+            activeCountElement.textContent = `${count} active`;
+        });
+
+        // Handle message read receipts
+        socket.on('message read', ({ messageId }) => {
+            const msgDiv = document.querySelector(`[data-id="${messageId}"]`);
+            if (msgDiv && msgDiv.classList.contains('sender-message-container')) {
+                const receipt = msgDiv.querySelector('.read-receipt');
+                if (receipt) {
+                    receipt.classList.add('read');
+                    receipt.textContent = '✓✓';
+                }
+            }
+        });
+
+        // Mark messages as read when they come into view
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const messageId = entry.target.dataset.id;
+                    if (messageId && !entry.target.classList.contains('sender-message-container')) {
+                        socket.emit('mark read', { messageId });
+                    }
+                }
+            });
+        }, { threshold: 0.5 });
 
         // Handle sending messages
         function sendMessage({image} = {}) {
@@ -387,6 +464,7 @@
             socket.emit('chat message', msgObj);
             displayMessage(username, message, true, image, null, [], msgObj.timestamp, msgObj.id, isBigEmoji);
             messageInput.value = '';
+            messageReadStatus.set(msgObj.id, false);
         }
 
         sendButton.addEventListener('click', () => sendMessage());
@@ -520,8 +598,19 @@
             messageElement.appendChild(reactBtn);
 
             const timestampElement = document.createElement('div');
-            timestampElement.textContent = formatTimestamp(timestamp ? new Date(timestamp) : new Date());
             timestampElement.classList.add('timestamp');
+            
+            const timeSpan = document.createElement('span');
+            timeSpan.textContent = formatTimestamp(timestamp ? new Date(timestamp) : new Date());
+            timestampElement.appendChild(timeSpan);
+            
+            // Add read receipt for sender's messages
+            if (isSender) {
+                const receipt = document.createElement('span');
+                receipt.className = 'read-receipt';
+                receipt.textContent = '✓';
+                timestampElement.appendChild(receipt);
+            }
 
             messageContainer.appendChild(usernameElement);
             messageContainer.appendChild(messageElement);
@@ -529,6 +618,11 @@
 
             messagesDiv.appendChild(messageContainer);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            // Observe message for read receipts
+            if (messageId) {
+                observer.observe(messageContainer);
+            }
         }
 
         function addReactionToMessage(msgDiv, emoji) {
