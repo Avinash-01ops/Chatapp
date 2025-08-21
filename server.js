@@ -16,14 +16,53 @@ const io = new Server(server, {
   }
 });
 
-let activeUsers = 0;
+const connectedUsers = new Map();
+
+function getClientInfo(socket, clientData) {
+  const forwarded = socket.handshake.headers['x-forwarded-for'];
+  const realIP = socket.handshake.headers['x-real-ip'];
+  const remoteAddress = socket.handshake.address;
+  
+  let ip = 'Unknown';
+  if (forwarded) {
+    ip = forwarded.split(',')[0].trim();
+  } else if (realIP) {
+    ip = realIP;
+  } else if (remoteAddress) {
+    ip = remoteAddress.replace('::ffff:', '');
+  }
+  
+  // Simple location detection based on IP patterns
+  let location = 'Unknown';
+  if (ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) {
+    location = 'Local Network';
+  } else if (ip === '127.0.0.1' || ip === '::1') {
+    location = 'Localhost';
+  } else {
+    location = 'External';
+  }
+  
+  return {
+    ...clientData,
+    ip,
+    location,
+    joinTime: Date.now(),
+    socketId: socket.id
+  };
+}
 
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
 
-  socket.on('user joined', () => {
-    activeUsers++;
-    io.emit('active users', activeUsers);
+  socket.on('user joined', (clientData) => {
+    const clientInfo = getClientInfo(socket, clientData);
+    connectedUsers.set(socket.id, clientInfo);
+    
+    const userArray = Array.from(connectedUsers.entries());
+    io.emit('active users', { 
+      count: connectedUsers.size, 
+      users: userArray 
+    });
   });
 
   socket.on('chat message', (data) => {
@@ -40,8 +79,13 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log(`Client disconnected: ${socket.id}`);
-    activeUsers = Math.max(0, activeUsers - 1);
-    io.emit('active users', activeUsers);
+    connectedUsers.delete(socket.id);
+    
+    const userArray = Array.from(connectedUsers.entries());
+    io.emit('active users', { 
+      count: connectedUsers.size, 
+      users: userArray 
+    });
   });
 });
 

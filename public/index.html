@@ -54,6 +54,102 @@
       50% { opacity: 0.5; }
       100% { opacity: 1; }
     }
+    .reply-indicator {
+      font-size: 10px;
+      color: #4fc3f7;
+      margin-bottom: 4px;
+      padding: 2px 6px;
+      background: #1a1a1a;
+      border-left: 2px solid #4fc3f7;
+      border-radius: 3px;
+    }
+    .ghost-panel {
+      position: fixed;
+      right: -260px;
+      top: 0;
+      width: 240px;
+      height: 100vh;
+      background: #000;
+      border-left: 1px solid #222;
+      transition: right 0.2s;
+      z-index: 1000;
+      overflow: hidden;
+      font-family: 'Courier New', monospace;
+    }
+    .ghost-panel.active {
+      right: 0;
+    }
+    .ghost-header {
+      background: #111;
+      padding: 8px 12px;
+      border-bottom: 1px solid #222;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .ghost-header h3 {
+      color: #afafaf;
+      margin: 0;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .collapse-btn {
+      background: none;
+      border: none;
+      color: #afafaf;
+      cursor: pointer;
+      font-size: 12px;
+      opacity: 0.7;
+    }
+    .ghost-content {
+      padding: 8px;
+      height: calc(100vh - 35px);
+      overflow-y: auto;
+    }
+    .user-info {
+      background: #0a0a0a;
+      padding: 6px;
+      margin: 4px 0;
+      border-radius: 2px;
+      font-size: 10px;
+      color: #999;
+      border: 1px solid #222;
+    }
+    .user-info .username {
+      color: #fff;
+      font-weight: normal;
+      margin-bottom: 4px;
+      font-size: 11px;
+    }
+    .info-row {
+      margin: 1px 0;
+      display: flex;
+      justify-content: space-between;
+    }
+    .info-label {
+      color: #555;
+      width: 50px;
+    }
+    .ghost-toggle {
+      position: fixed;
+      left: 3px;
+      bottom: 15px;
+      background: transparent;
+      border: 1px solid #333;
+      color: #666;
+      padding: 2px 4px;
+      border-radius: 1px;
+      cursor: pointer;
+      z-index: 999;
+      font-size: 7px;
+      opacity: 0.2;
+      transition: opacity 0.2s;
+      font-family: 'Courier New', monospace;
+    }
+    .ghost-toggle:hover {
+      opacity: 0.6;
+    }
     .messages-container {
       flex-grow: 1;
       overflow-y: auto;
@@ -116,14 +212,18 @@
       align-self: flex-end;
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 6px;
     }
     .read-receipt {
-      font-size: 14px;
-      color: #666;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #666;
+      display: inline-block;
     }
     .read-receipt.read {
-      color: #4fc3f7;
+      background: #4caf50;
+      box-shadow: 0 0 4px #4caf50;
     }
     .message-input-container {
       display: flex;
@@ -208,15 +308,16 @@
     .reaction-btn {
       background: none;
       border: none;
-      color: #fff;
-      font-size: 18px;
+      color: #888;
+      font-size: 12px;
       cursor: pointer;
-      margin-left: 6px;
-      margin-top: 2px;
-      transition: transform 0.2s;
+      padding: 2px;
+      transition: all 0.2s;
+      border-radius: 3px;
     }
     .reaction-btn:hover {
-      transform: scale(1.2) rotate(-10deg);
+      background: #333;
+      color: #fff;
     }
     .reactions-bar {
       display: flex;
@@ -310,9 +411,22 @@
         <div class="modal-content">
             <h2>Enter Your Username</h2>
             <input type="text" id="usernameInput" placeholder="Enter username..." />
+            <input type="password" id="secretCodeInput" placeholder="Access code..." style="display: none;" />
             <button id="usernameSubmitButton">Submit</button>
         </div>
     </div>
+
+    <!-- Ghost Panel -->
+    <div id="ghostPanel" class="ghost-panel">
+        <div class="ghost-header">
+            <h3>SURVEILLANCE</h3>
+            <button class="collapse-btn" id="collapseBtn">×</button>
+        </div>
+        <div class="ghost-content">
+            <div id="usersList"></div>
+        </div>
+    </div>
+    <button id="ghostToggle" class="ghost-toggle" style="display: none;">SYS</button>
 
     <div class="chat-container">
       <div class="chat-header">
@@ -352,10 +466,15 @@
         const usernameModal = document.getElementById('usernameModal');
         const usernameInput = document.getElementById('usernameInput');
         const usernameSubmitButton = document.getElementById('usernameSubmitButton');
+        const secretCodeInput = document.getElementById('secretCodeInput');
         const clearChatButton = document.getElementById('clearChatButton');
         const emojiButton = document.getElementById('emojiButton');
         const emojiPickerContainer = document.getElementById('emojiPickerContainer');
         const activeCountElement = document.getElementById('activeCount');
+        const ghostPanel = document.getElementById('ghostPanel');
+        const usersList = document.getElementById('usersList');
+        const ghostToggle = document.getElementById('ghostToggle');
+        const collapseBtn = document.getElementById('collapseBtn');
 
 
         // Use Socket.IO for real-time communication
@@ -363,8 +482,12 @@
 
         let username = '';
         let reactionPickers = [];
-        let activeUsers = 1;
+        let activeUsers = 0;
         let messageReadStatus = new Map();
+        let replyingTo = null;
+        let connectedUsers = new Map();
+        let isGhostMode = false;
+        let ghostAuthenticated = false;
 
         // Show modal to set username when the page loads
         window.addEventListener('load', () => {
@@ -372,22 +495,83 @@
         });
 
         // Handle username submission
-        usernameSubmitButton.addEventListener('click', () => {
+        function submitUsername() {
             const input = usernameInput.value.trim();
             if (!input) {
                 alert('Please enter a username.');
                 return;
             }
+            
+            if (input === 'ghost') {
+                const authCode = secretCodeInput.value.trim();
+                if (authCode !== 'bravosix') {
+                    alert('Access denied.');
+                    secretCodeInput.value = '';
+                    secretCodeInput.focus();
+                    return;
+                }
+                ghostAuthenticated = true;
+                isGhostMode = true;
+            }
+            
             username = input;
             usernameModal.style.display = 'none';
-            socket.emit('user joined');
+            
+            const clientInfo = {
+                username,
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                language: navigator.language,
+                screenResolution: `${screen.width}x${screen.height}`,
+                colorDepth: screen.colorDepth,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                cookieEnabled: navigator.cookieEnabled,
+                onlineStatus: navigator.onLine,
+                connection: navigator.connection ? {
+                    effectiveType: navigator.connection.effectiveType,
+                    downlink: navigator.connection.downlink
+                } : null
+            };
+            
+            socket.emit('user joined', clientInfo);
+            
+            if (isGhostMode && ghostAuthenticated) {
+                ghostPanel.classList.add('active');
+                ghostToggle.style.display = 'block';
+            }
+        }
+        
+        usernameSubmitButton.addEventListener('click', submitUsername);
+        usernameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                if (usernameInput.value.trim() === 'ghost' && secretCodeInput.style.display === 'none') {
+                    secretCodeInput.style.display = 'block';
+                    secretCodeInput.focus();
+                } else {
+                    submitUsername();
+                }
+            }
+        });
+        
+        usernameInput.addEventListener('input', (e) => {
+            if (e.target.value.trim() === 'ghost') {
+                secretCodeInput.style.display = 'block';
+            } else {
+                secretCodeInput.style.display = 'none';
+            }
+        });
+        
+        secretCodeInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                submitUsername();
+            }
         });
 
         // Handle receiving messages from the server
         socket.on('chat message', (data) => {
-            const { username: sender, message, image, reactions, timestamp, id } = data;
+            const { username: sender, message, image, reactions, timestamp, id, replyTo } = data;
             if (sender !== username) {
-                displayMessage(sender, message, false, image, null, reactions, timestamp, id);
+                displayMessage(sender, message, false, image, null, reactions, timestamp, id, false, replyTo);
             }
         });
 
@@ -400,9 +584,13 @@
         });
 
         // Handle active users count
-        socket.on('active users', (count) => {
+        socket.on('active users', ({ count, users }) => {
             activeUsers = count;
             activeCountElement.textContent = `${count} active`;
+            connectedUsers = new Map(users);
+            if (isGhostMode && ghostAuthenticated) {
+                updateGhostPanel();
+            }
         });
 
         // Handle message read receipts
@@ -412,7 +600,6 @@
                 const receipt = msgDiv.querySelector('.read-receipt');
                 if (receipt) {
                     receipt.classList.add('read');
-                    receipt.textContent = '✓✓';
                 }
             }
         });
@@ -459,19 +646,21 @@
                 reactions: [],
                 timestamp: Date.now(),
                 id: Date.now().toString() + Math.random().toString(36).slice(2),
-                isBigEmoji
+                isBigEmoji,
+                replyTo: replyingTo
             };
             socket.emit('chat message', msgObj);
-            displayMessage(username, message, true, image, null, [], msgObj.timestamp, msgObj.id, isBigEmoji);
+            displayMessage(username, message, true, image, null, [], msgObj.timestamp, msgObj.id, isBigEmoji, replyingTo);
             messageInput.value = '';
             messageReadStatus.set(msgObj.id, false);
+            replyingTo = null;
         }
 
         sendButton.addEventListener('click', () => sendMessage());
 
         // Send message on Enter key
         messageInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !e.shiftKey) {
                 sendMessage();
             }
         });
@@ -517,7 +706,7 @@
 
 
         // Display a message with username above, timestamp below, reactions, and reaction button
-        function displayMessage(sender, message, isSender = false, image = null, sticker = null, reactions = [], timestamp = null, id = null, isBigEmoji = false) {
+        function displayMessage(sender, message, isSender = false, image = null, sticker = null, reactions = [], timestamp = null, id = null, isBigEmoji = false, replyTo = null) {
             const messageContainer = document.createElement('div');
             messageContainer.classList.add('message-container');
             if (isSender) messageContainer.classList.add('sender-message-container');
@@ -527,6 +716,14 @@
             const usernameElement = document.createElement('div');
             usernameElement.textContent = sender;
             usernameElement.classList.add('username');
+            
+            // Add reply indicator
+            if (replyTo) {
+                const replyDiv = document.createElement('div');
+                replyDiv.className = 'reply-indicator';
+                replyDiv.textContent = `↳ ${replyTo.username}: ${replyTo.message?.substring(0, 30) || 'media'}...`;
+                messageContainer.appendChild(replyDiv);
+            }
 
             const messageElement = document.createElement('div');
             messageElement.classList.add('message-bubble');
@@ -566,11 +763,21 @@
                 });
             }
 
-            // Reaction button
+            // Reaction and reply buttons
             const reactBtn = document.createElement('button');
             reactBtn.className = 'reaction-btn';
             reactBtn.title = 'React';
             reactBtn.innerHTML = '✌️';
+            
+            const replyBtn = document.createElement('button');
+            replyBtn.className = 'reaction-btn';
+            replyBtn.title = 'Reply';
+            replyBtn.innerHTML = '➡️';
+            replyBtn.addEventListener('click', () => {
+                replyingTo = { username: sender, message, id: messageId };
+                messageInput.placeholder = `Replying to ${sender}...`;
+                messageInput.focus();
+            });
 
             // Reaction picker
             let pickerDiv = null;
@@ -595,10 +802,12 @@
             }
 
             messageElement.appendChild(reactionsBar);
-            messageElement.appendChild(reactBtn);
 
             const timestampElement = document.createElement('div');
             timestampElement.classList.add('timestamp');
+            
+            timestampElement.appendChild(reactBtn);
+            timestampElement.appendChild(replyBtn);
             
             const timeSpan = document.createElement('span');
             timeSpan.textContent = formatTimestamp(timestamp ? new Date(timestamp) : new Date());
@@ -606,9 +815,8 @@
             
             // Add read receipt for sender's messages
             if (isSender) {
-                const receipt = document.createElement('span');
+                const receipt = document.createElement('div');
                 receipt.className = 'read-receipt';
-                receipt.textContent = '✓';
                 timestampElement.appendChild(receipt);
             }
 
@@ -662,6 +870,89 @@
 
         clearChatButton.addEventListener('click', () => {
           messagesDiv.innerHTML = '';
+        });
+        
+        // Ghost mode functions
+        function updateGhostPanel() {
+            if (!isGhostMode || !ghostAuthenticated) return;
+            
+            usersList.innerHTML = '';
+            connectedUsers.forEach((userData, socketId) => {
+                const userDiv = document.createElement('div');
+                userDiv.className = 'user-info';
+                
+                const browser = getBrowserInfo(userData.userAgent);
+                const os = getOSInfo(userData.userAgent);
+                const device = getDeviceType(userData.userAgent);
+                
+                userDiv.innerHTML = `
+                    <div class="username">${userData.username}</div>
+                    <div class="info-row"><span class="info-label">IP</span> ${userData.ip}</div>
+                    <div class="info-row"><span class="info-label">LOC</span> ${userData.location}</div>
+                    <div class="info-row"><span class="info-label">OS</span> ${os}</div>
+                    <div class="info-row"><span class="info-label">DEV</span> ${device}</div>
+                    <div class="info-row"><span class="info-label">RES</span> ${userData.screenResolution}</div>
+                    <div class="info-row"><span class="info-label">TZ</span> ${userData.timezone}</div>
+                    <div class="info-row"><span class="info-label">CONN</span> ${userData.connection?.effectiveType || 'UNK'}</div>
+                    <div class="info-row"><span class="info-label">TIME</span> ${new Date(userData.joinTime).toLocaleTimeString()}</div>
+                `;
+                usersList.appendChild(userDiv);
+            });
+        }
+        
+        function getBrowserInfo(userAgent) {
+            if (userAgent.includes('Chrome')) return 'CHR';
+            if (userAgent.includes('Firefox')) return 'FF';
+            if (userAgent.includes('Safari')) return 'SAF';
+            if (userAgent.includes('Edge')) return 'EDG';
+            return 'UNK';
+        }
+        
+        function getOSInfo(userAgent) {
+            if (userAgent.includes('Windows')) return 'WIN';
+            if (userAgent.includes('Mac')) return 'MAC';
+            if (userAgent.includes('Linux')) return 'LNX';
+            if (userAgent.includes('Android')) return 'AND';
+            if (userAgent.includes('iOS')) return 'IOS';
+            return 'UNK';
+        }
+        
+        function getDeviceType(userAgent) {
+            if (userAgent.includes('Mobile')) return 'MOB';
+            if (userAgent.includes('Tablet')) return 'TAB';
+            return 'DSK';
+        }
+        
+        // Ghost panel controls
+        collapseBtn.addEventListener('click', () => {
+            ghostPanel.classList.remove('active');
+            ghostToggle.style.display = 'block';
+        });
+        
+        ghostToggle.addEventListener('click', () => {
+            ghostPanel.classList.add('active');
+            ghostToggle.style.display = 'none';
+        });
+        
+        // Clear reply on Escape
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && replyingTo) {
+                replyingTo = null;
+                messageInput.placeholder = 'Type a message...';
+            }
+        });
+        
+        // Secret access - Ctrl+Shift+G
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && e.key === 'G' && isGhostMode && ghostAuthenticated) {
+                if (ghostPanel.classList.contains('active')) {
+                    ghostPanel.classList.remove('active');
+                    ghostToggle.style.display = 'block';
+                } else {
+                    ghostPanel.classList.add('active');
+                    ghostToggle.style.display = 'none';
+                }
+            }
         });
     </script>
 </body>
