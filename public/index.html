@@ -610,8 +610,8 @@
             const { username: sender, message, image, reactions, timestamp, id, replyTo } = data;
             if (sender !== username) {
                 displayMessage(sender, message, false, image, null, reactions, timestamp, id, false, replyTo);
-                // Show toast if tab hidden
-                if (document.hidden) {
+                // Show toast if tab not visible or window not focused
+                if (document.hidden || !document.hasFocus()) {
                     incrementToastCount();
                 }
             }
