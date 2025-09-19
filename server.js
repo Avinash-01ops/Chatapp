@@ -77,6 +77,15 @@ io.on('connection', (socket) => {
     socket.broadcast.emit('message read', { messageId });
   });
 
+  // Typing indicators
+  socket.on('typing', ({ username }) => {
+    socket.broadcast.emit('typing', { username, socketId: socket.id });
+  });
+
+  socket.on('stop typing', ({ username }) => {
+    socket.broadcast.emit('stop typing', { username, socketId: socket.id });
+  });
+
   socket.on('disconnect', () => {
     console.log(`Client disconnected: ${socket.id}`);
     connectedUsers.delete(socket.id);

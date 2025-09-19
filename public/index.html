@@ -150,6 +150,32 @@
     .ghost-toggle:hover {
       opacity: 0.6;
     }
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #000;
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 8px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      z-index: 2000;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+      font-size: 14px;
+    }
+    .toast.show { display: flex; }
+    .toast .emoji { font-size: 18px; }
+    .toast .close-btn {
+      background: transparent;
+      border: none;
+      color: #aaa;
+      cursor: pointer;
+      font-size: 16px;
+      margin-left: 4px;
+    }
     .messages-container {
       flex-grow: 1;
       overflow-y: auto;
@@ -436,6 +462,7 @@
           <div class="online-dot"></div>
           <span id="activeCount">1 active</span>
         </div>
+        <div id="typingIndicator" style="font-size:12px;color:#999;"></div>
       </div>
       <div class="messages-container" id="messages"></div>
       <div class="message-input-container">
@@ -459,6 +486,11 @@
         <button id="clearChatButton">Clear</button>
       </div>
     </div>
+    <div id="toast" class="toast">
+      <span class="emoji">🐑</span>
+      <span id="toastText">New messages</span>
+      <button id="toastClose" class="close-btn">✕</button>
+    </div>
   
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
@@ -477,6 +509,10 @@
         const usersList = document.getElementById('usersList');
         const ghostToggle = document.getElementById('ghostToggle');
         const collapseBtn = document.getElementById('collapseBtn');
+        const toast = document.getElementById('toast');
+        const toastText = document.getElementById('toastText');
+        const toastClose = document.getElementById('toastClose');
+        const typingIndicator = document.getElementById('typingIndicator');
 
 
         // Use Socket.IO for real-time communication
@@ -574,7 +610,19 @@
             const { username: sender, message, image, reactions, timestamp, id, replyTo } = data;
             if (sender !== username) {
                 displayMessage(sender, message, false, image, null, reactions, timestamp, id, false, replyTo);
+                // Show toast if tab hidden
+                if (document.hidden) {
+                    incrementToastCount();
+                }
             }
+        });
+
+        // Typing events
+        socket.on('typing', ({ username: u }) => {
+            showTyping(u);
+        });
+        socket.on('stop typing', ({ username: u }) => {
+            hideTyping(u);
         });
 
         // Handle receiving reactions
@@ -656,6 +704,7 @@
             messageInput.value = '';
             messageReadStatus.set(msgObj.id, false);
             replyingTo = null;
+            stopTyping();
         }
 
         sendButton.addEventListener('click', () => sendMessage());
@@ -666,6 +715,31 @@
                 sendMessage();
             }
         });
+
+        // Typing emit with debounce
+        let typing = false;
+        let lastTypingTime = 0;
+        const TYPING_TIMER = 800;
+        function updateTyping() {
+            if (!typing) {
+                typing = true;
+                socket.emit('typing', { username });
+            }
+            lastTypingTime = Date.now();
+            setTimeout(() => {
+                const timeDiff = Date.now() - lastTypingTime;
+                if (timeDiff >= TYPING_TIMER && typing) {
+                    stopTyping();
+                }
+            }, TYPING_TIMER + 10);
+        }
+        function stopTyping() {
+            if (typing) {
+                typing = false;
+                socket.emit('stop typing', { username });
+            }
+        }
+        messageInput.addEventListener('input', updateTyping);
 
         // Emoji picker for message input
         emojiButton.addEventListener('click', () => {
@@ -874,6 +948,29 @@
             return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
+        // Typing indicator render helpers
+        const currentlyTyping = new Set();
+        function showTyping(u) {
+            if (!u || u === username) return;
+            currentlyTyping.add(u);
+            renderTyping();
+        }
+        function hideTyping(u) {
+            if (!u || u === username) return;
+            currentlyTyping.delete(u);
+            renderTyping();
+        }
+        function renderTyping() {
+            if (currentlyTyping.size === 0) {
+                typingIndicator.textContent = '';
+                return;
+            }
+            const names = Array.from(currentlyTyping).slice(0, 3);
+            const more = currentlyTyping.size - names.length;
+            const label = more > 0 ? `${names.join(', ')} +${more}` : names.join(', ');
+            typingIndicator.textContent = `${label} typing...`;
+        }
+
         clearChatButton.addEventListener('click', () => {
           messagesDiv.innerHTML = '';
         });
@@ -958,6 +1055,34 @@
                     ghostPanel.classList.add('active');
                     ghostToggle.style.display = 'none';
                 }
+            }
+        });
+
+        // Toast helpers
+        let pendingToastCount = 0;
+        let toastTimer = null;
+        function incrementToastCount() {
+            pendingToastCount += 1;
+            toastText.textContent = `${pendingToastCount} new message${pendingToastCount>1?'s':''}`;
+            showToast();
+        }
+        function showToast() {
+            toast.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                hideToast();
+            }, 3000);
+        }
+        function hideToast() {
+            toast.classList.remove('show');
+            pendingToastCount = 0;
+        }
+        toastClose.addEventListener('click', hideToast);
+
+        // Reset toast count when tab becomes visible
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                hideToast();
             }
         });
     </script>
